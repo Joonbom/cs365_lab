@@ -16,6 +16,7 @@ services:
     restart: unless-stopped
 
   backend:
+    image: ${BACKEND_IMAGE:-backend_api:latest}
     build: 
       context: ./api
       dockerfile: Dockerfile
@@ -33,6 +34,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: ${FRONTEND_IMAGE:-login_frontend:latest}
     build:
       context: ./login_page
       dockerfile: Dockerfile

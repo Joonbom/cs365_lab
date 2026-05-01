@@ -31,7 +31,7 @@ jobs:
       run: npm test
 
   deploy:
-    name: Deploy with Terraform & Docker Compose
+    name: Deploy with Terraform, ECR & Docker Compose
     needs: test-backend
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -60,24 +60,58 @@ jobs:
       run: |
         terraform apply -auto-approve
         echo "PUBLIC_IP=$(terraform output -raw public_ip)" >> $GITHUB_ENV
+        echo "FRONTEND_ECR_REPO=$(terraform output -raw frontend_ecr_repository_url)" >> $GITHUB_ENV
+        echo "BACKEND_ECR_REPO=$(terraform output -raw backend_ecr_repository_url)" >> $GITHUB_ENV
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push images to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: latest
+      run: |
+        # Build and Push Frontend
+        docker build -t $ECR_REGISTRY/frontend-repo:$IMAGE_TAG ./login_page
+        docker push $ECR_REGISTRY/frontend-repo:$IMAGE_TAG
+        
+        # Build and Push Backend
+        docker build -t $ECR_REGISTRY/backend-repo:$IMAGE_TAG ./api
+        docker push $ECR_REGISTRY/backend-repo:$IMAGE_TAG
 
     - name: Deploy to EC2
       env:
-        PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         HOST: ${{ env.PUBLIC_IP }}
         USER: ec2-user
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: latest
+        AWS_REGION: us-east-1
       run: |
-        echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-        
         # Wait for EC2 instance to be ready and Docker to be installed via user_data
         echo "Waiting for EC2 instance and Docker to be ready..."
         sleep 60
         
-        # Copy the project to the EC2 instance
-        rsync -avz -e "ssh -i private_key -o StrictHostKeyChecking=no" --exclude '.git' --exclude 'node_modules' --exclude '.github' ./ $USER@$HOST:~/cs365_lab/
+        # Use the dynamically generated private key
+        PRIVATE_KEY_PATH="./terraform/private_key.pem"
+        chmod 600 $PRIVATE_KEY_PATH
+        
+        # Create app directory on EC2 and copy essential files (docker-compose.yml & init.sql)
+        ssh -i $PRIVATE_KEY_PATH -o StrictHostKeyChecking=no $USER@$HOST "mkdir -p ~/cs365_lab"
+        scp -i $PRIVATE_KEY_PATH -o StrictHostKeyChecking=no docker-compose.yml init.sql $USER@$HOST:~/cs365_lab/
         
         # Run docker-compose on the EC2 instance
-        ssh -i private_key -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
+        ssh -i $PRIVATE_KEY_PATH -o StrictHostKeyChecking=no $USER@$HOST << EOF
+          # Login to ECR on EC2
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin \$ECR_REGISTRY
+          
           cd ~/cs365_lab
-          docker compose up -d --build
+          
+          # Pull the latest images
+          export FRONTEND_IMAGE=\$ECR_REGISTRY/frontend-repo:\$IMAGE_TAG
+          export BACKEND_IMAGE=\$ECR_REGISTRY/backend-repo:\$IMAGE_TAG
+          docker-compose pull
+          
+          # Restart services with new images
+          docker-compose up -d
         EOF
