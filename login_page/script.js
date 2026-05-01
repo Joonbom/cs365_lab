@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // NOTE: Here is the actual API call logic ready for the backend.
             // Replace `https://api.example.com/v1/auth/login` with your real endpoint.
             
-            const response = await fetch('http://api.example.com/v1/auth/login', {
+            const response = await fetch('http://localhost:3000/api/login', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
