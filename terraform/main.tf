@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "songtor-terraform-state"
+    bucket = "cs365-terraform-state"
     key    = "cs365-lab/terraform.tfstate"
     region = "us-east-1"
   }
@@ -56,6 +56,15 @@ resource "aws_security_group" "login_page_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Allow port 3000 for backend testing if needed
+  ingress {
+    description = "Backend API"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -87,9 +96,19 @@ resource "local_file" "private_key" {
   file_permission = "0600"
 }
 
-# Create ECR Repository
-resource "aws_ecr_repository" "login_page_repo" {
-  name                 = "login-page-repo"
+# Create ECR Repository for Frontend
+resource "aws_ecr_repository" "frontend_repo" {
+  name                 = "frontend-repo"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+# Create ECR Repository for Backend
+resource "aws_ecr_repository" "backend_repo" {
+  name                 = "backend-repo"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -117,6 +136,9 @@ resource "aws_instance" "login_server" {
               #!/bin/bash
               yum update -y
               yum install -y docker
+              curl -SL https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+              ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
               systemctl start docker
               systemctl enable docker
               usermod -aG docker ec2-user
@@ -137,7 +159,12 @@ output "website_url" {
   description = "The URL to access the login page"
 }
 
-output "ecr_repository_url" {
-  value       = aws_ecr_repository.login_page_repo.repository_url
-  description = "The URL of the ECR repository"
+output "frontend_ecr_repository_url" {
+  value       = aws_ecr_repository.frontend_repo.repository_url
+  description = "The URL of the frontend ECR repository"
+}
+
+output "backend_ecr_repository_url" {
+  value       = aws_ecr_repository.backend_repo.repository_url
+  description = "The URL of the backend ECR repository"
 }
