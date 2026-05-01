@@ -143,7 +143,7 @@ jobs:
       run: |
         # Wait for EC2 instance to be ready and Docker to be installed via user_data
         echo "Waiting for EC2 instance and Docker to be ready..."
-        sleep 60
+        sleep 10
         
         # Use the dynamically generated private key
         PRIVATE_KEY_PATH="./terraform/private_key.pem"
@@ -156,13 +156,13 @@ jobs:
         # Run docker-compose on the EC2 instance
         ssh -i $PRIVATE_KEY_PATH -o StrictHostKeyChecking=no $USER@$HOST << EOF
           # Login to ECR on EC2
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin \$ECR_REGISTRY
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
           
           cd ~/cs365_lab
           
           # Pull the latest images
-          export FRONTEND_IMAGE=\$ECR_REGISTRY/frontend-repo-v2:\$IMAGE_TAG
-          export BACKEND_IMAGE=\$ECR_REGISTRY/backend-repo-v2:\$IMAGE_TAG
+          export FRONTEND_IMAGE=$ECR_REGISTRY/frontend-repo-v2:$IMAGE_TAG
+          export BACKEND_IMAGE=$ECR_REGISTRY/backend-repo-v2:$IMAGE_TAG
           docker-compose pull
           
           # Restart services with new images
