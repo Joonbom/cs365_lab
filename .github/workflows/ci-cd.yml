@@ -73,12 +73,12 @@ jobs:
         IMAGE_TAG: latest
       run: |
         # Build and Push Frontend
-        docker build -t $ECR_REGISTRY/frontend-repo:$IMAGE_TAG ./login_page
-        docker push $ECR_REGISTRY/frontend-repo:$IMAGE_TAG
+        docker build -t $ECR_REGISTRY/frontend-repo-v2:$IMAGE_TAG ./login_page
+        docker push $ECR_REGISTRY/frontend-repo-v2:$IMAGE_TAG
         
         # Build and Push Backend
-        docker build -t $ECR_REGISTRY/backend-repo:$IMAGE_TAG ./api
-        docker push $ECR_REGISTRY/backend-repo:$IMAGE_TAG
+        docker build -t $ECR_REGISTRY/backend-repo-v2:$IMAGE_TAG ./api
+        docker push $ECR_REGISTRY/backend-repo-v2:$IMAGE_TAG
 
     - name: Deploy to EC2
       env:
@@ -108,8 +108,8 @@ jobs:
           cd ~/cs365_lab
           
           # Pull the latest images
-          export FRONTEND_IMAGE=\$ECR_REGISTRY/frontend-repo:\$IMAGE_TAG
-          export BACKEND_IMAGE=\$ECR_REGISTRY/backend-repo:\$IMAGE_TAG
+          export FRONTEND_IMAGE=\$ECR_REGISTRY/frontend-repo-v2:\$IMAGE_TAG
+          export BACKEND_IMAGE=\$ECR_REGISTRY/backend-repo-v2:\$IMAGE_TAG
           docker-compose pull
           
           # Restart services with new images
