@@ -36,7 +36,7 @@ data "aws_ami" "amazon_linux_2023" {
 
 # Security Group to allow HTTP (80) and SSH (22)
 resource "aws_security_group" "login_page_sg" {
-  name        = "login_page_sg"
+  name        = "login_page_sg_v2"
   description = "Allow HTTP and SSH inbound traffic"
   vpc_id      = data.aws_vpc.default.id
 
