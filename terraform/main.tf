@@ -1,3 +1,11 @@
+terraform {
+  backend "s3" {
+    bucket = "songtor-terraform-state"
+    key    = "cs365-lab/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
 provider "aws" {
   region = "us-east-1"
 }
