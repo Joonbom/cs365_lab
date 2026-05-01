@@ -1,0 +1,83 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./api
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: './api/package-lock.json'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm test
+
+  deploy:
+    name: Deploy with Terraform & Docker Compose
+    needs: test-backend
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # Required for AWS Learner Labs
+        aws-region: us-east-1
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Terraform Init
+      working-directory: ./terraform
+      run: terraform init
+
+    - name: Terraform Apply
+      working-directory: ./terraform
+      id: apply
+      run: |
+        terraform apply -auto-approve
+        echo "PUBLIC_IP=$(terraform output -raw public_ip)" >> $GITHUB_ENV
+
+    - name: Deploy to EC2
+      env:
+        PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        HOST: ${{ env.PUBLIC_IP }}
+        USER: ec2-user
+      run: |
+        echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+        
+        # Wait for EC2 instance to be ready and Docker to be installed via user_data
+        echo "Waiting for EC2 instance and Docker to be ready..."
+        sleep 60
+        
+        # Copy the project to the EC2 instance
+        rsync -avz -e "ssh -i private_key -o StrictHostKeyChecking=no" --exclude '.git' --exclude 'node_modules' --exclude '.github' ./ $USER@$HOST:~/cs365_lab/
+        
+        # Run docker-compose on the EC2 instance
+        ssh -i private_key -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
+          cd ~/cs365_lab
+          docker compose up -d --build
+        EOF

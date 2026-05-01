@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: my_postgres_db
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+
+  backend:
+    build: 
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: backend_api
+    environment:
+      DB_USER: myuser
+      DB_HOST: db
+      DB_NAME: mydb
+      DB_PASSWORD: mypassword
+      DB_PORT: 5432
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./login_page
+      dockerfile: Dockerfile
+    container_name: login_frontend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

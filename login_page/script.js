@@ -29,33 +29,26 @@ document.addEventListener('DOMContentLoaded', () => {
             // NOTE: Here is the actual API call logic ready for the backend.
             // Replace `https://api.example.com/v1/auth/login` with your real endpoint.
             
-            const response = await fetch('http://localhost:3000/api/login', {
+            const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify({ username: email, password })
             });
             const data = await response.json();
             
             if (response.ok) {
                 showMessage('Login successful! Redirecting...', 'success');
-                // Store auth token
-                localStorage.setItem('authToken', data.token);
+                // Store auth token (optional based on your backend response)
+                if (data.token) {
+                    localStorage.setItem('authToken', data.token);
+                }
                 // Redirect user
                 window.location.href = '/dashboard';
             } else {
-                showMessage(data.message || 'Invalid credentials', 'error');
-            }
-        
-            // Simulating network request for demonstration
-            const response = await simulateApiCall(email, password);
-            
-            if (response.ok) {
-                showMessage('Login successful! Redirecting...', 'success');
-            } else {
-                showMessage(response.error || 'Invalid credentials', 'error');
+                showMessage(data.error || 'Invalid credentials', 'error');
             }
         } catch (error) {
             showMessage('Network error occurred during login. Please try again.', 'error');
