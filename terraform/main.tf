@@ -98,7 +98,7 @@ resource "local_file" "private_key" {
 
 # Create ECR Repository for Frontend
 resource "aws_ecr_repository" "frontend_repo" {
-  name                 = "frontend-repo"
+  name                 = "frontend-repo-v2"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
