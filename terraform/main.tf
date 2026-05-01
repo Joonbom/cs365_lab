@@ -85,7 +85,7 @@ resource "tls_private_key" "my_key" {
 
 # Create an AWS Key Pair
 resource "aws_key_pair" "my_key_pair" {
-  key_name   = "login_page_key"
+  key_name   = "login_page_key_v2"
   public_key = tls_private_key.my_key.public_key_openssh
 }
 
